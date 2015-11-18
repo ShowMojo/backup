@@ -120,6 +120,16 @@ module Backup
       @storages << get_class_from_scope(Storage, name).new(self, storage_id, &block)
     end
 
+    def before(&block)
+      @before = block if block
+      @before
+    end
+
+    def after(&block)
+      @after = block if block
+      @after
+    end
+
     ##
     # Adds a syncer method to the array of syncer
     # methods to use during the backup process
@@ -247,6 +257,7 @@ module Backup
       @started_at = Time.now
       @time = @started_at.strftime("%Y.%m.%d.%H.%M.%S")
       log!(:started)
+      before_hook
 
       if databases.any? or archives.any?
         procedures.each do |procedure|
@@ -258,6 +269,7 @@ module Backup
       syncers.each(&:perform!)
       notifiers.each(&:perform!)
       log!(:finished)
+      after_hook
 
     rescue Exception => err
       fatal = !err.is_a?(StandardError)
@@ -379,6 +391,27 @@ module Backup
       minutes   = remainder / 60
       seconds   = remainder - (minutes * 60)
       '%02d:%02d:%02d' % [hours, minutes, seconds]
+    end
+
+    def before_hook
+      return unless before
+
+      Logger.message 'Before Hook Starting...'
+      before.call
+      Logger.message 'Before Hook Finished.'
+    rescue
+      @before_hook_failed = true
+      Logger.error 'Before Hook Failed!'
+    end
+
+    def after_hook
+      return unless after && !@before_hook_failed
+
+      Logger.message 'After Hook Starting...'
+      after.call(exit_status)
+      Logger.message 'After Hook Finished.'
+    rescue
+      Logger.error 'After Hook Failed!'
     end
 
   end
