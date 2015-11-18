@@ -17,6 +17,12 @@ module Backup
         # The AWS region of the specified S3 bucket
         attr_accessor :region
 
+        # sync files only from specified date
+        attr_accessor :date_from
+
+        # archive files before uploading
+        attr_accessor :archived
+
         ##
         # Instantiates a new Cloud::S3 Syncer.
         #
@@ -27,11 +33,13 @@ module Backup
         #
         # Once pre-configured defaults and Cloud specific defaults are set,
         # the block from the user's configuration file is evaluated.
-        def initialize(&block)
+        def initialize(model, &block)
           super
 
           instance_eval(&block) if block_given?
           @path = path.sub(/^\//, '')
+          @date_from = date_from
+          @archived = archived || false
         end
 
         private
